@@ -1,32 +1,28 @@
 package com.booking.service.impl;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Predicate;
 
+import com.booking.constant.BookingConstant;
+import com.booking.payload.*;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import com.booking.entity.Booking;
-import com.booking.entity.InvoicePdf;
 import com.booking.entity.Property;
 import com.booking.entity.Room;
 import com.booking.feign.NotificationFeign;
 import com.booking.feign.PropertyFeign;
 import com.booking.feign.UserFeign;
-import com.booking.payload.BillingDetailsDto;
-import com.booking.payload.BookingRequestDto;
-import com.booking.payload.MessageDto;
-import com.booking.payload.PdfDetailsDto;
-import com.booking.payload.User;
 import com.booking.repository.BookingRepository;
 import com.booking.service.BookingService;
 import com.booking.service.InvoicePdfService;
@@ -48,9 +44,10 @@ public class BookingServiceImpl implements BookingService {
 	private final InvoicePdfService invoicePdfService;
 	private final PDFUtil pdfUtil;
 	private final NotificationFeign notificationFeign;
+	private ExecutorService executorService = Executors.newFixedThreadPool(10);
 
 	@Override
-	public Long createBooking(BookingRequestDto bookingDto, String userId) {
+	public BookingResponseDto createBooking(BookingRequestDto bookingDto, String userId) {
 		int MAX_RETRIES = 3;
 		String lockId = "ROOM-LOCK" + bookingDto.getRoomId() + bookingDto.getCheckInDate()
 				+ bookingDto.getCheckoutDate();
@@ -63,18 +60,17 @@ public class BookingServiceImpl implements BookingService {
 				if (lock.tryLock(10, 10, TimeUnit.SECONDS)) {
 					ResponseEntity<Room> responseRoom = propertyFeign.invokeGetRoomById(bookingDto.getRoomId());
 					ResponseEntity<User> userDto = userFeign.invokeGetUserById(userId);
-					log.info("Thread name: {}", Thread.currentThread().getName());
 					if (responseRoom != null && userDto != null) {
 						Room room = responseRoom.getBody();
 						User user = userDto.getBody();
 						user.setUserId(userId);
 						if (room != null && user != null) {
-							List<Booking> existingBookings = bookingRepository.findByRoomAndCheckInDateAndCheckoutDate(
+							List<Booking> existingBookings = bookingRepository.getBookedRooms(
 									room.getId(), bookingDto.getCheckInDate(), bookingDto.getCheckoutDate());
 
 							if (existingBookings == null || existingBookings.isEmpty()) {
 								if (room.getNoOfRooms() >= bookingDto.getRoomCount()) {
-									return bookRoom(bookingDto, room, user);
+									return  bookRoom(bookingDto, room, user);
 								} else {
 									return null;
 								}
@@ -90,7 +86,7 @@ public class BookingServiceImpl implements BookingService {
 							return null;
 						}
 					} else {
-						return null; // Invalid response from Feign clients
+						return null;
 					}
 				} else {
 					retries++;
@@ -111,10 +107,10 @@ public class BookingServiceImpl implements BookingService {
 	}
 
 	@Transactional
-	private Long bookRoom(BookingRequestDto bookingDto, Room room, User user) {
+	private BookingResponseDto bookRoom(BookingRequestDto bookingDto, Room room, User user) {
 	    ExecutorService executorService = Executors.newFixedThreadPool(4);
 	    Booking newBooking = new Booking();
-	    
+		newBooking.setBookingStatus(BookingConstant.PENDING);
 	    if(bookingDto.getBookingId() != null) {
 	        newBooking.setBookingId(bookingDto.getBookingId());
 	    }
@@ -127,52 +123,20 @@ public class BookingServiceImpl implements BookingService {
 	    newBooking.setGuestCount(bookingDto.getGuestCount());
 	    newBooking.setRoomCount(bookingDto.getRoomCount());
 	    newBooking.setGuestName(user.getName());
+		newBooking.setExpiry(LocalDateTime.now().plusMinutes(5));
 	    BillingDetailsDto bill = generateBill(bookingDto, calculateTotalNigth(bookingDto), room);
 	    newBooking.setTotalBill(bill.getTotalWithTax());
 	    try {
 	        Booking saveBooking = bookingRepository.save(newBooking);
 	        
 	        Long bookingId = saveBooking.getBookingId();
-	        
-	        PdfDetailsDto pdfDetailsDto = createPdfDetailsDto(saveBooking, room, bill);
-	        String url = pdfUtil.pdfInvoiceGenerator(pdfDetailsDto);
-	        
-	        CompletableFuture.runAsync(()->{
-	        	invoicePdfService.saveInvoicePdf(url, user.getUserId());
-	        },executorService);
-	        
-	        CompletableFuture<MessageDto> messageDtoCreationFuture = CompletableFuture.supplyAsync(()->{
-	        	log.info("GENRATE-DTO-MSG");
-                MessageDto messageDto = new MessageDto();
-                messageDto.setMediaUrl(url);
-                messageDto.setCheckOutDate(bookingDto.getCheckoutDate());
-                messageDto.setCheckInDate(bookingDto.getCheckInDate());
-                messageDto.setPropertyName(room.getProperty().getPropertyName());
-                messageDto.setGuestName(user.getName());
-                messageDto.setNumber(user.getMobile());
-                return messageDto;
-            },executorService);
-	        
-	        messageDtoCreationFuture.join();
-	        
-	        CompletableFuture<Boolean> smsSendFuture = messageDtoCreationFuture.thenApplyAsync(dto->{
-	        	log.info("SMS-MSG");
-	        	return notificationFeign.invokeSendSms(dto);
-	        },executorService);
-	        
-	        CompletableFuture<Boolean> whatsappSendFuture = messageDtoCreationFuture.thenApplyAsync(dto->{
-	        	log.info("WHATSAPP-MSG");
-	        	return notificationFeign.invokeSendWhatsappWithMedia(dto);
-	        },executorService);
-	        
-	        Boolean isSmsSend = smsSendFuture.get();
-	        Boolean isWhatsappSend = whatsappSendFuture.get();
-	        if(isSmsSend || isWhatsappSend) {
-	        	executorService.shutdownNow();
-	        }else {
-	        	executorService.isShutdown();
-	        }
-	        return bookingId;
+	        return BookingResponseDto.builder()
+					.bookingNumber(saveBooking.getBookingId())
+					.propertyId(saveBooking.getPropertyId())
+					.roomId(saveBooking.getRoomId())
+					.totalAmount(saveBooking.getTotalBill())
+					.userId(saveBooking.getUserId())
+					.build();
 
 	    } catch (Exception e) {
 	        log.error("Error during booking process", e);
@@ -248,9 +212,9 @@ public class BookingServiceImpl implements BookingService {
 	@Override
 	public String updateBooking(BookingRequestDto updatedBookingDto, Long bookingId,String userId) {
 		updatedBookingDto.setBookingId(bookingId);
-		Long savedBookingId = createBooking(updatedBookingDto,userId);
+		BookingResponseDto savedBookingId = createBooking(updatedBookingDto,userId);
 		if(savedBookingId != null) {
-			return "Booking updated with Booking Id : "+savedBookingId;
+			return "Booking updated with Booking Id : "+savedBookingId.getBookingNumber();
 		}else {
 			return "Booking Updation Not Proceed";
 		}
@@ -275,6 +239,50 @@ public class BookingServiceImpl implements BookingService {
 			return bookings;
 		}
 		return null;
+	}
+
+	@Override
+	public String updateBookingStatus(BookingUpdateDto updateDto) {
+		Optional<Booking> opBooking = bookingRepository.findById(updateDto.getBookingNumber());
+		if (opBooking.isPresent()){
+			Booking booking = opBooking.get();
+			booking.setBookingStatus(updateDto.getBookingStatus());
+			booking.setPaymentId(updateDto.getPaymentId());
+			booking.setOrderId(updateDto.getOrderId());
+			Booking bookingSaved = bookingRepository.save(booking);
+			if (bookingSaved.getBookingStatus().equals(updateDto.getBookingStatus())){
+				return "Successfully Updated";
+			}
+		}
+		return null;
+	}
+
+	@Override
+	public String deleteBookingPaymentFailed(BookingUpdateDto bookingUpdateDto) {
+		Optional<Booking> opBooking = bookingRepository.findById(bookingUpdateDto.getBookingNumber());
+		if (opBooking.isPresent() && "FAILED".equals(bookingUpdateDto.getBookingStatus())){
+			Booking booking = opBooking.get();
+			bookingRepository.delete(booking);
+			opBooking = bookingRepository.findById(bookingUpdateDto.getBookingNumber());
+			if (opBooking.isEmpty()){
+				return "Booking Failed Status Is Updated";
+			}
+		}
+		return "Booking Not Avaiable With Id:"+bookingUpdateDto.getBookingNumber();
+	}
+
+	@Scheduled(fixedRate = 30000)
+	public void deletePendingBooking() {
+		LocalDateTime now = LocalDateTime.now();
+		log.info("Running scheduled task: Checking for expired pending bookings");
+		List<Booking> bookingsList = bookingRepository.findExpiredPendingBookings(now);
+
+		executorService.submit(()->{
+			bookingsList.forEach(booking -> {
+				bookingRepository.delete(booking);
+				log.info("Deleted expired booking with ID: {}", booking.getBookingId());
+			});
+		});
 	}
 
 }

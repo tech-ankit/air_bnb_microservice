@@ -47,6 +47,9 @@ public class Booking {
 	
 	@Column(nullable = false , length = 20)
 	private Integer roomCount;
+
+	@Column(nullable = false , length = 20)
+	private String bookingStatus;
 	
 	@Column(nullable = false)
 	private Long totalNights;
@@ -56,10 +59,17 @@ public class Booking {
 	
 	@Column(nullable = false , length = 50)
 	private BigDecimal totalBill;
+
+	private String paymentId;
+
+	private String orderId;
 	
 	@CreationTimestamp
 	@Column(updatable = false , length = 15)
 	private LocalDateTime bookingDateTime;
+
+	@Column(nullable = false)
+	private LocalDateTime expiry;
 	
 	@UpdateTimestamp
 	@Column(insertable = false , length = 15)

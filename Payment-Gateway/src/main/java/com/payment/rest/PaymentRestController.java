@@ -16,8 +16,12 @@ public class PaymentRestController {
     @Autowired
     private PaymentService paymentService;
 
-    @PostMapping
-    public String showPaymentPage(@RequestBody PaymentRequestDto paymentDto , Model model) {
+    @GetMapping
+    public String showPaymentPage(@RequestParam Long bookingNumber,@RequestParam Double amount,@RequestParam String userId, Model model) {
+        PaymentRequestDto paymentDto = new PaymentRequestDto();
+        paymentDto.setAmount(amount);
+        paymentDto.setUserId(userId);
+        paymentDto.setBookingNumber(bookingNumber);
         try {
             String orderResponse = paymentService.bookingPayment(paymentDto);
             model.addAttribute("orderResponse", orderResponse);

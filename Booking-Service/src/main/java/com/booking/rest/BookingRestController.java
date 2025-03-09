@@ -2,14 +2,11 @@ package com.booking.rest;
 
 import java.util.List;
 
+import com.booking.payload.BookingResponseDto;
+import com.booking.payload.BookingUpdateDto;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.booking.entity.Booking;
 import com.booking.payload.BookingRequestDto;
@@ -25,12 +22,12 @@ public class BookingRestController {
 	private final BookingService bookingService;
 	
 	@PostMapping(value = "/book/{userId}")
-	public ResponseEntity<String> createBooking(@RequestBody BookingRequestDto bookingDto,@PathVariable String userId) {
-		Long bookingId =  bookingService.createBooking(bookingDto, userId);
-		if(bookingId == null) {
-			return new ResponseEntity<>("Room Not Available",HttpStatus.NOT_FOUND);
+	public ResponseEntity<BookingResponseDto> createBooking(@RequestBody BookingRequestDto bookingDto,@PathVariable String userId) {
+		BookingResponseDto bookingResDto =  bookingService.createBooking(bookingDto, userId);
+		if(bookingDto == null) {
+			return new ResponseEntity<>(null,HttpStatus.NOT_FOUND);
 		}else {
-			return new ResponseEntity<>("Room is Booked With Booking Id :"+bookingId,HttpStatus.OK);
+			return new ResponseEntity<>(bookingResDto,HttpStatus.OK);
 		}
 	}
 	
@@ -42,6 +39,16 @@ public class BookingRestController {
 	@GetMapping(value = "/property/{propertyId}")
 	public List<Booking> getAllBookingForProperty(@PathVariable String propertyId){
 		return bookingService.getAllBookingForProperty(propertyId);
+	}
+
+	@PostMapping(value = "/update/status")
+	public String updateBookingStatus(@RequestBody BookingUpdateDto updateDto){
+		return bookingService.updateBookingStatus(updateDto);
+	}
+
+	@PostMapping(value = "/delete")
+	public String deleteBookingPaymentFailed(@RequestBody BookingUpdateDto bookingUpdateDto){
+		return bookingService.deleteBookingPaymentFailed(bookingUpdateDto);
 	}
 
 }

@@ -8,6 +8,6 @@ import lombok.Setter;
 public class PaymentRequestDto {
 
     public Double amount;
-    public String bookingNumber;
+    public Long bookingNumber;
     public String userId;
 }

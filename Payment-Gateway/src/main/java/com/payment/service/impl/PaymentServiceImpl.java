@@ -1,6 +1,7 @@
 package com.payment.service.impl;
 
 import com.payment.entity.GiftCard;
+import com.payment.payload.BookingUpdateDto;
 import com.payment.payload.GiftCardRequestDto;
 import com.payment.payload.PaymentRequestDto;
 import com.payment.constant.PaymentConstant;
@@ -20,7 +21,9 @@ import jakarta.transaction.Transactional;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDate;
 import java.util.Map;
@@ -49,7 +52,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public String bookingPayment(PaymentRequestDto paymentDto) {
-        String receipt = "Booking_"+paymentDto.getBookingNumber().trim();
+        String receipt = "Booking_"+paymentDto.getBookingNumber();
         JSONObject orderRequest = new JSONObject();
         orderRequest.put("amount", (int) (paymentDto.getAmount() * 100)); // Convert to paise
         orderRequest.put("currency", "INR");
@@ -98,6 +101,7 @@ public class PaymentServiceImpl implements PaymentService {
 
             // Verify payment signature
             boolean isValid = Utils.verifyPaymentSignature(options, SECRET);
+            isValid = false;
             if (isValid){
                 if ("online_payment".equals(transactionType)){
                     Transaction transaction = new Transaction();
@@ -105,7 +109,27 @@ public class PaymentServiceImpl implements PaymentService {
                     transaction.setUserId(userId);
                     transaction.setTransactionType(TransactionType.RAZOR_PAY);
                     transactionRepository.save(transaction);
-                    return updatePaymentStatus(bookingNumber,orderId,receipt,paymentId);
+                    //Update Booking Status
+                    BookingUpdateDto updateDto = BookingUpdateDto.builder()
+                            .bookingNumber(Long.valueOf(bookingNumber))
+                            .bookingStatus("SUCCESS")
+                            .orderId(orderId)
+                            .paymentId(paymentId)
+                            .build();
+                    RestTemplate restTemplate = new RestTemplate();
+                    ResponseEntity<String> response = restTemplate.postForEntity(
+                            "http://localhost:8002/api/v1/booking/update/status",
+                            updateDto,
+                            String.class
+                    );
+
+                    String responseBody = response.getBody();
+                    System.out.println("Response: " + responseBody);
+                    if (response.getBody()!=null){
+                        return updatePaymentStatus(Long.valueOf(bookingNumber),orderId,receipt,paymentId);
+                    }else {
+                        return null;
+                    }
                 }
                 if ("gift_card".equals(transactionType)){
                     Transaction transaction = new Transaction();
@@ -115,6 +139,28 @@ public class PaymentServiceImpl implements PaymentService {
                     transactionRepository.save(transaction);
                     return giftCardService.updateGiftCard(bookingNumber,orderId,receipt,paymentId);
                 }
+            }else {
+                if ("online_payment".equals(transactionType)){
+                    //Update Booking Status
+                    BookingUpdateDto updateDto = BookingUpdateDto.builder()
+                            .bookingNumber(Long.valueOf(bookingNumber))
+                            .bookingStatus("FAILED")
+                            .build();
+                    RestTemplate restTemplate = new RestTemplate();
+                    ResponseEntity<String> response = restTemplate.postForEntity(
+                            "http://localhost:8002/api/v1/booking/delete",
+                            updateDto,
+                            String.class
+                    );
+
+                    String responseBody = response.getBody();
+                    System.out.println("Response: " + responseBody);
+                    if (response.getBody()!=null){
+                        return updatePaymentStatus(Long.valueOf(bookingNumber),orderId,receipt,paymentId);
+                    }else {
+                        return null;
+                    }
+                }
             }
             return null;
         } catch (Exception e) {
@@ -123,7 +169,7 @@ public class PaymentServiceImpl implements PaymentService {
         }
     }
 
-    private String updatePaymentStatus(String bookingNumber, String orderId , String receipt , String paymentId){
+    private String updatePaymentStatus(Long bookingNumber, String orderId , String receipt , String paymentId){
         Optional<Payment> opPayment = paymentRepo.findByBookingNumberAndOrderIdAndReceipt(bookingNumber, orderId , receipt);
 
         if (opPayment.isPresent()){

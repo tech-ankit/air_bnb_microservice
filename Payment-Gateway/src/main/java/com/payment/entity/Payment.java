@@ -16,7 +16,7 @@ public class Payment {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
-    private String bookingNumber;
+    private Long bookingNumber;
     private String orderId;
     private String paymentId;
     private String paymentStatus;
