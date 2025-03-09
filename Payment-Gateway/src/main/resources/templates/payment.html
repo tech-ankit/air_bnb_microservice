@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Hotel Booking Payment</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+
+<h2>Pay ₹<span th:text="${amount}"></span> for your booking</h2>
+<input type="hidden" id="bookingNumber" th:value="${bookingNumber}" />
+<input type="hidden" id="orderResponse" th:value="${orderResponse}" />
+<input type="hidden" id="amount" th:value="${amount}" />
+<input type="hidden" id="user_id" th:value="${user_id}" />
+<input type="hidden" id="transaction_type" th:value="${transaction_type}" />
+<button onclick="makePayment()">Pay Now</button>
+
+<script>
+    function makePayment() {
+        let orderData = document.getElementById("orderResponse").value;
+        let amount = document.getElementById("amount").value;
+        let userId = document.getElementById("user_id").value;
+        let bookingNumber = document.getElementById("bookingNumber").value;
+        let transactionType = document.getElementById("transaction_type").value;
+        console.log("🔹 Raw Order Response from Thymeleaf:", orderData);
+        console.log("🔹 Raw Order Response from Thymeleaf:", bookingNumber);
+        console.log("🔹 Raw Order Response from Thymeleaf:", transactionType);
+        try {
+            let order = JSON.parse(orderData);
+            console.log("✅ Parsed Order Object:", order); // DEBUG LOG
+
+            if (!order.id) {
+                console.error("❌ Order ID is missing! Check backend.");
+                alert("Error: Order ID is missing.");
+                return;
+            }
+
+            var options = {
+                "key": "rzp_test_MVKBtVYp2q0cRW",
+                "amount": order.amount,
+                "currency": "INR",
+                "name": "Air Bnb",
+                "receipt":order.receipt,
+                "order_id": order.id,
+                "description":"Sai Villa",
+                "image":"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTOgb2BhJXOIPm724g6D6DsY0_OTtfznQv84A&s",
+                "handler": function (response) {
+                    fetch("/api/v1/payment/verify", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            "payment_id": response.razorpay_payment_id,
+                            "order_id": response.razorpay_order_id,
+                            "signature": response.razorpay_signature,
+                            "booking_number": bookingNumber,
+                            "receipt": order.receipt,
+                            "user_id":userId,
+                            "transaction_type":transactionType,
+                            "amount": amount
+                        })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            window.location.href = "/api/v1/payment/success";
+                        } else {
+                            alert("Payment Verification Failed!");
+                        }
+                    })
+                    .catch(err => alert("Error: " + err));
+                },
+                "theme": { "color": "#007bff" }
+            };
+
+            var rzp = new Razorpay(options);
+            rzp.open();
+        } catch (error) {
+            console.error("❌ JSON Parse Error:", error);
+            alert("Error parsing order data. Check logs.");
+        }
+    }
+</script>
+
+</body>
+</html>

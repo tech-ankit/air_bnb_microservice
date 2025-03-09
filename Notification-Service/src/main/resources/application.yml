@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: NOTIFICATION-API
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: message-group
+      properties:
+        spring.kafka.consumer.properties.spring.kafka.consumer.trusted.packages: "*"
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+#  boot:
+#    admin:
+#      client:
+#        url: http://localhost:1111
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+  instance:
+    hostname: localhost
+    preferIpAddress: true
+server:
+  port: 8003
+
+twilio:
+  account-sid: ${twilio_account_sid}
+  auth-token: ${twilio_auth_token}
+  whatsapp-number: ${twilio_whatsapp_number}
+  phone-number: +18148849618

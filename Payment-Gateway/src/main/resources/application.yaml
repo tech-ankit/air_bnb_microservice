@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: Payment-Gateway
+  datasource:
+    url: jdbc:mysql://localhost:3306/user-module
+    username: root
+    password: test
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+
+razorpay:
+  key_id: ${rzp_key_id}
+  key_secret: ${rzp_key_secret}
+

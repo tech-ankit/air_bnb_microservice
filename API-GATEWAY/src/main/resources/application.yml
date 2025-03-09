@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: API-GATEWAY
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+      routes:
+        - id: USER-API-1
+          uri: lb://USER-API
+          predicates:
+            - Path=/auth/**
+          filters:
+            - StripPrefix=1
+        - id: PROPERTY-API-1
+          uri: lb://PROPERTY-API
+          predicates:
+            - Path=/property/**
+          filters:
+            - StripPrefix=1
+        - id: BOOKING-API-1
+          uri: lb://BOOKING-API
+          predicates:
+            - Path=/booking/**
+          filters:
+            - StripPrefix=1
+        - id: NOTIFICATION-API-1
+          uri: lb://NOTIFICATION-API
+          predicates:
+            - Path=/notification/**
+          filters:
+            - StripPrefix=1
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+    fetchRegistry: true 
+    registerWithEureka: true 
+  instance:
+    hostname: localhost
+    preferIpAddress: true  
+ 
+server:
+  port: 1000
