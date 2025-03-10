@@ -5,6 +5,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import com.user.bindings.TokenResponseDto;
 import org.apache.hc.client5.http.impl.Operations.CompletedFuture;
 import org.springframework.beans.BeanUtils;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -149,18 +150,21 @@ public class UserServiceImpl implements UserService {
 	}
 
 	@Override
-	public Boolean checkTokenValidity(String token) {
+	public TokenResponseDto checkTokenValidity(String token) {
 		String username = null;
 		try {
 			username = tokenUtil.getUsername(token);
 		}catch(Exception e) {
-			return false;
+			return null;
 		}
 		Optional<User> byUsername = userRepository.findByUsername(username);
 		if(byUsername.isPresent()) {
-			return true;
+			User user = byUsername.get();
+			TokenResponseDto tokenResponseDto = new TokenResponseDto();
+			BeanUtils.copyProperties(user,tokenResponseDto);
+			return tokenResponseDto;
 		}else {
-			return false;
+			return null;
 		}
 	}
 

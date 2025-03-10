@@ -1,5 +1,6 @@
 package com.user.rest;
 
+import com.user.bindings.TokenResponseDto;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -104,9 +105,9 @@ public class UserRestController {
 	
 	@GetMapping(value = "/token/validation")
 	@CircuitBreaker(fallbackMethod = CHECK_TOKEN_VALIDITY_FALLBACK, name = TOKEN_VALIDITY)
-	public ResponseEntity<Boolean> checkTokenValidity(@RequestParam(value = "token") String token){
-		Boolean isValid = userService.checkTokenValidity(token);
-		return ResponseEntity.ok(isValid);
+	public ResponseEntity<TokenResponseDto> checkTokenValidity(@RequestParam(value = "token") String token){
+		TokenResponseDto tokenResponseDto = userService.checkTokenValidity(token);
+		return ResponseEntity.ok(tokenResponseDto);
 	}
 	
 	@GetMapping(value = "/otp")

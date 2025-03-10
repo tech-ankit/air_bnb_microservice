@@ -1,6 +1,7 @@
 package com.user.service;
 
 import com.user.bindings.LoginDto;
+import com.user.bindings.TokenResponseDto;
 import com.user.bindings.UserDto;
 
 public interface UserService {
@@ -12,6 +13,6 @@ public interface UserService {
 	String updatePassword(String id, String updatedPassword);
 	String updateEmail(String id, String updatedEmail);
 	String updateMobile(String id, String updatedMobile);
-	Boolean checkTokenValidity(String token);
+	TokenResponseDto checkTokenValidity(String token);
 	UserDto getByUserId(String userId);
 }
