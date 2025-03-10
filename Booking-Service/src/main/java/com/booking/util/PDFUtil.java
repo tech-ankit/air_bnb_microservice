@@ -79,17 +79,17 @@ public class PDFUtil {
             canvas.rectangle(x, y, width, height);
             canvas.stroke();
 
-            String logoPath = "src/main/resources/static/logo.png";
+            //String logoPath = "src/main/resources/static/logo.png";
 
 
             PdfFont font = PdfFontFactory.createFont(StandardFonts.TIMES_ROMAN);
 
-            ImageData imageData = ImageDataFactory.create(logoPath);
-            Image logo = new Image(imageData);
-            float logoSize = 50;
-            logo.setWidth(logoSize);
-            logo.setFixedPosition(36, page.getPageSize().getTop() - 80);
-            document.add(logo);
+//            ImageData imageData = ImageDataFactory.create(logoPath);
+//            Image logo = new Image(imageData);
+//            float logoSize = 50;
+//            logo.setWidth(logoSize);
+//            logo.setFixedPosition(36, page.getPageSize().getTop() - 80);
+//            document.add(logo);
 
 
             Paragraph paragraph = new Paragraph("AirBnb Service")

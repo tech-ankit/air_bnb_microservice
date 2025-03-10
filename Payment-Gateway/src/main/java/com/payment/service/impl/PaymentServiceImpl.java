@@ -22,6 +22,7 @@ import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -46,6 +47,9 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Autowired
     private GiftCardRepository giftCardRepository;
+
+    @Autowired
+    private KafkaTemplate<String,String> kafkaTemplate;
 
     @Value("${razorpay.key_secret}")
     private String SECRET ;
@@ -101,7 +105,6 @@ public class PaymentServiceImpl implements PaymentService {
 
             // Verify payment signature
             boolean isValid = Utils.verifyPaymentSignature(options, SECRET);
-            isValid = false;
             if (isValid){
                 if ("online_payment".equals(transactionType)){
                     Transaction transaction = new Transaction();
@@ -126,6 +129,13 @@ public class PaymentServiceImpl implements PaymentService {
                     String responseBody = response.getBody();
                     System.out.println("Response: " + responseBody);
                     if (response.getBody()!=null){
+                        //Generate pdf
+
+                        kafkaTemplate.send("pdf-topic",bookingNumber);
+
+
+                        //Send notification
+
                         return updatePaymentStatus(Long.valueOf(bookingNumber),orderId,receipt,paymentId);
                     }else {
                         return null;

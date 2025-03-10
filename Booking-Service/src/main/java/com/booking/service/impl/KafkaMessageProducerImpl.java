@@ -16,7 +16,7 @@ public class KafkaMessageProducerImpl implements KafkaMessageProducer {
 	
 	@Override
 	public void sendMessage(MessageDto messageDto) {
-		kafkaTemplate.send("my-topic",messageDto);
+		kafkaTemplate.send("notification-topic",messageDto);
 	}
 
 }

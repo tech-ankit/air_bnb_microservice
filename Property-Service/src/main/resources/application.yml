@@ -2,7 +2,7 @@ spring:
   application:
     name: PROPERTY-API
   datasource:
-    url: jdbc:mysql://localhost:3306/user-module
+    url: jdbc:mysql://localhost:3306/user-module?createDatabaseIfNotExist=true
     username: root
     password: test
   jpa:

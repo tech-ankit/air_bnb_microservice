@@ -11,6 +11,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.booking.constant.BookingConstant;
 import com.booking.payload.*;
+import lombok.RequiredArgsConstructor;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.http.ResponseEntity;
@@ -33,7 +34,7 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
-@AllArgsConstructor
+@RequiredArgsConstructor
 @Slf4j
 public class BookingServiceImpl implements BookingService {
 
@@ -123,7 +124,7 @@ public class BookingServiceImpl implements BookingService {
 	    newBooking.setGuestCount(bookingDto.getGuestCount());
 	    newBooking.setRoomCount(bookingDto.getRoomCount());
 	    newBooking.setGuestName(user.getName());
-		newBooking.setExpiry(LocalDateTime.now().plusMinutes(5));
+		newBooking.setExpiry(LocalDateTime.now().plusMinutes(10));
 	    BillingDetailsDto bill = generateBill(bookingDto, calculateTotalNigth(bookingDto), room);
 	    newBooking.setTotalBill(bill.getTotalWithTax());
 	    try {

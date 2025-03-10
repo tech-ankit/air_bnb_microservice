@@ -33,7 +33,7 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
-    @KafkaListener(topics = "my-topic" , groupId = "message-group", containerFactory = "factory")
+    @KafkaListener(topics = "notification-topic" , groupId = "message-group", containerFactory = "factory")
     public void sendWhatsappMessageWithMedia(com.booking.payload.MessageDto messageDto) {
         String whatsapp = "whatsapp:";
         Message msg = Message.creator(

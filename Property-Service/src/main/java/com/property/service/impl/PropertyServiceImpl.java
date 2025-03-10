@@ -3,7 +3,12 @@ package com.property.service.impl;
 import java.util.List;
 import java.util.Locale.Category;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -32,6 +37,7 @@ import com.property.service.PropertyService;
 
 import lombok.AllArgsConstructor;
 
+@Slf4j
 @Service
 @AllArgsConstructor
 public class PropertyServiceImpl implements PropertyService {
@@ -47,28 +53,69 @@ public class PropertyServiceImpl implements PropertyService {
 
 	@Override
 	public Property addProperty(Property property, PropertyDetailDto propertyDetailDto) {
-		PropertyCategory propertyCategory = propertyCategoryRepository
-				.findById(propertyDetailDto.getCategoryId())
-				.orElse(new PropertyCategory(1l,"Delux"));
-		Country country = countryRepository
-				.findById(propertyDetailDto.getCountryId())
-				.orElseThrow(()-> new RuntimeException("Country is Invalid"));
-		City city = cityRepository
-				.findById(propertyDetailDto.getCityId())
-				.orElseThrow(()-> new RuntimeException("City is Invalid"));
-		State state = stateRepository
-				.findById(propertyDetailDto.getStateId())
-				.orElseThrow(()-> new RuntimeException("State is Invalid"));
-		Location location = locationRepository
-				.findById(propertyDetailDto.getStateId())
-				.orElseThrow(()-> new RuntimeException("Location is Invalid"));
-		property.setPropertyCategory(propertyCategory);
-		property.setCountry(country);
-		property.setState(state);
-		property.setCity(city);
-		property.setLocation(location);
-		property.setUserId(propertyDetailDto.getUserId());
-		return propertyRepository.save(property);
+		ExecutorService executorService = Executors.newFixedThreadPool(5);
+
+		CompletableFuture<PropertyCategory> propertyCategoryFuture = CompletableFuture.supplyAsync(()->{
+			return propertyCategoryRepository
+					.findById(propertyDetailDto.getCategoryId())
+					.orElse(new PropertyCategory(1l,"Delux"));
+		},executorService);
+
+		CompletableFuture<Country> countryFuture = CompletableFuture.supplyAsync(()->{
+			return countryRepository
+					.findById(propertyDetailDto.getCountryId())
+					.orElseThrow(()-> new RuntimeException("Country is Invalid"));
+		},executorService);
+
+		CompletableFuture<City> cityFuture = CompletableFuture.supplyAsync(()->{
+			return cityRepository
+					.findById(propertyDetailDto.getCityId())
+					.orElseThrow(()-> new RuntimeException("City is Invalid"));
+		},executorService);
+
+		CompletableFuture<State> stateFuture = CompletableFuture.supplyAsync(()->{
+			return stateRepository
+					.findById(propertyDetailDto.getStateId())
+					.orElseThrow(()-> new RuntimeException("State is Invalid"));
+		},executorService);
+
+		CompletableFuture<Location> locationFuture = CompletableFuture.supplyAsync(()->{
+			return locationRepository
+					.findById(propertyDetailDto.getStateId())
+					.orElseThrow(()-> new RuntimeException("Location is Invalid"));
+		},executorService);
+
+		CompletableFuture.allOf(propertyCategoryFuture,countryFuture,stateFuture,cityFuture,locationFuture).join();
+
+		PropertyCategory propertyCategory = null;
+		Country country = null;
+		State state =null;
+		Location location = null;
+		City city = null;
+
+		try {
+			propertyCategory = propertyCategoryFuture.get();
+			country = countryFuture.get();
+			state = stateFuture.get();
+			city = cityFuture.get();
+			location = locationFuture.get();
+		}catch (ExecutionException | InterruptedException e){
+			log.error(e.getMessage());
+		}finally{
+			executorService.shutdown();
+		}
+
+		if(propertyCategory != null && country != null && state != null && city != null && location != null){
+			property.setPropertyCategory(propertyCategory);
+			property.setCountry(country);
+			property.setState(state);
+			property.setCity(city);
+			property.setLocation(location);
+			property.setUserId(propertyDetailDto.getProperty().getUserId());
+			return propertyRepository.save(property);
+		}else {
+			return null;
+		}
 	}
 
 	@Override

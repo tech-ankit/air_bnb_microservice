@@ -56,7 +56,7 @@ public class Property {
 	@Column(length = 2, nullable = false) 
 	private Integer taxInPercentage;
 	
-	@Column(nullable = false , length = 20)
+	@Column(nullable = false , length = 100)
 	private String userId;
 	
 	@CreationTimestamp
