@@ -25,7 +25,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long>{
 	List<Booking> getBookedRooms(Long roomId , LocalDate checkInDate,LocalDate checkoutDate);
 
 	@Query("SELECT b FROM Booking b where b.propertyId=:propertyId")
-	List<Booking> findByProperty(String property);
+	List<Booking> findByProperty(String propertyId);
 
 	List<Booking> findByUserId(String userId);
 

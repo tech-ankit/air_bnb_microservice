@@ -1,50 +1,5 @@
 spring:
   application:
     name: PROPERTY-API
-  datasource:
-    url: jdbc:mysql://localhost:3306/user-module?createDatabaseIfNotExist=true
-    username: root
-    password: test
-  jpa:
-    show-sql: true
-    hibernate:
-      ddl-auto: update
-#  boot:
-#    admin:
-#      client:
-#        url: http://localhost:1111
-  servlet:
-   multipart:
-    max-file-size: 50MB
-    max-request-size: 100MB
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: "*"
-
-eureka:
-  client:
-    service-url:
-      defaultZone: http://localhost:8761/eureka
-
-resilience4j:
- circuitbreaker:
-    configs:
-      default:
-       registerHealthIndicator: true
-       slidingWindowSize: 10
-       minimumNumberOfCalls: 5
-       permittedNumberOfCallsInHalfOpenState: 3		 
-       automaticTransitionFromOpenToHalfOpenEnabled: true
-       waitDurationInOpenState: 100s
-       failureRateThreshold: 50
-server:
-  port: 8001
-
-aws:
-  access-key: ${aws_access_key}
-  secret-key: ${aws_secret_key}
-  region: ${aws_region}
-  bucket-name: ${aws_bucket_name}
+  config:
+    import: optional:configserver:http://localhost:8888

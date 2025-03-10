@@ -24,6 +24,8 @@ public class SecurityConfig {
                 .cors(cor->cor.disable())
                 .authorizeExchange(req->{
                     req.pathMatchers("/auth/**").permitAll();
+                    req.pathMatchers("/notification/**").hasAnyRole("USER","ADMIN");
+                    req.pathMatchers("/booking/api/v1/booking/property/**").hasRole("OWNER");
                     req.anyExchange().authenticated();
                 })
                 .addFilterBefore(jwtFilter, SecurityWebFiltersOrder.AUTHENTICATION)

@@ -1,6 +1,5 @@
 spring:
   application:
-    name: Payment-Gateway
+    name: SERVICE-REGISTRY
   config:
     import: optional:configserver:http://localhost:8888
-
